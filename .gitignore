@@ -1,0 +1,5 @@
+sidekick-client/
+sidekick-server/
+
+# Ignore Mac system files
+.DS_Store
