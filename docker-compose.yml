@@ -1,0 +1,61 @@
+# --- DATABASE SERVICE ---
+services:
+  database:
+    container_name: ${DB_CONTAINER_NAME}
+    image: mysql:${MYSQL_VERSION}
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${HOST_DB_PORT}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - sidekick-network
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # --- BACKEND SERVICE ---
+  backend:
+    container_name: ${BACKEND_CONTAINER_NAME}
+    build:
+      context: ./sidekick-server
+      dockerfile: Dockerfile
+    environment:
+      - PROJECT_NAME=${PROJECT_NAME}
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=${DRIVER_CLASS_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "${SERVER_APP_PORT}:8080"
+    networks:
+      - sidekick-network
+
+  # --- FRONTEND SERVICE---
+  frontend:
+    container_name: ${FRONTEND_CONTAINER_NAME}
+    build:
+      context: ./sidekick-client
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+    environment:
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+    ports:
+        - "${CLIENT_APP_PORT}:3000"
+    networks:
+        - sidekick-network
+
+networks:
+  sidekick-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
